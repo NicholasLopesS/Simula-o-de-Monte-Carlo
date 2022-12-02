@@ -1,4 +1,4 @@
-# Simula-o-de-Monte-Carlo
+# Simulacao de-Monte-Carlo
 Trabalho realizado na UEM como atividade final
 
 Sou aluno de Estatística na UEM e realizei um trabalho final da disciplina Estatística Computacional II da graduação de Estatística da UEM, 
