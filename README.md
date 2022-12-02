@@ -10,3 +10,5 @@ Após a realização de 100 mil simulações, foi descoberto que os melhores cen
 e o 7 (1 e 3). No entanto, o escolhido foi o 1 para a tentativa de ajustá-lo. 
 Foi possível então concluir que a Weibull Inversa não se ajusta perfeitamente, porém, quando comparada com a Exponencial e com a própria Weibull, 
 e usando os mesmos parâmetros, pode-se concluir que a Inversa tem o melhor desempenho dentre as três.
+
+Obs: Trabalho realizado usando a Linguagem R e o RMarkdown.
