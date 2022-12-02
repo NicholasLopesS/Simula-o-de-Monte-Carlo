@@ -1,0 +1,672 @@
+---
+title: ''
+output:
+  
+  html_document:
+    toc: true # table of content true
+    toc_depth: 4  # upto three depths of headings (specified by #, ## and ###)
+    number_sections: false ## if you want number sections at each table header
+    theme: united  # many options for theme, this one is my favorite.
+    highlight: tango  # specifies the syntax highlighting style
+    toc_float: true
+    smooth_scroll: false
+  word_document: default
+  pdf_document: default
+---
+
+
+
+<style>
+.list-group-item.active, .list-group-item.active:focus, .list-group-item.active:hover {
+    background-color: #3fbf44;
+}
+</style>
+
+<center> ![](capa.png) </center>
+
+<br/><br/><br/><br/>
+
+## HISTÓRIA
+
+<br/><br/>
+
+<center> ![Stanisław Marcin Ulam (1909-1984)](stam.png) </center>
+
+<br/><br/>
+
+<div style="text-align: justify"> O matemático e físico polonês Stanisław Ulam, em uma tarde de 1946, entediado jogando Paciência, levantou a questão de quais seriam as probabilidades de um determinado jogador ganhar a partida. Então se dispôs a realizar vários cálculos, porém, percebeu que apenas a análise combinatória não seria o suficiente para chegar na resposta desejada.
+</div>
+
+<br/>
+
+<div style="text-align: justify">Uma opção seria jogar várias vezes e ver quantas ganhou, entretanto, para atingir um número de jogadas suficientes ao ponto de obter a resposta levaria muito tempo, então teve a ideia de criar um algoritmo que simula quantas jogadas desejar. A computação da época era rudimentar, mas era o que tinha à disposição.
+</div>
+
+<br/>
+<div style="text-align: justify"> Por também ser físico e estar participando do Projeto Manhattan, percebeu que 
+poderia aplicar sua ideia na Fissão Nuclear e explorar o comportamento das 
+reações em cadeia de nêutrons. Assim fez e publicou o artigo “The Monte Carlo 
+Method” em 1949.
+</div>
+
+<br/><br/>
+
+<center> ![Artigo “The Monte Carlo Method” - 1949](artigo.png) </center>
+
+<br/><br/><br/><br/>
+
+
+## A SIMULAÇÃO
+
+<br/><br/>
+
+<div style="text-align: justify"> A Simulação de Monte Carlo, também chamada de
+Método de Monte Carlo, é um modelo probabilístico que gera amostras aleatórias 
+prevendo resultados futuros com uma base escolhida. Em outras palavras, é uma 
+simulação de cenários possíveis seguindo uma determinada função de densidade de 
+probabilidade.
+
+</div>
+
+<br/><br/>
+
+### Weibull Inversa
+
+<br/><br/>
+
+<div style="text-align: justify"> A função de probabilidade escolhida para realizar
+a Simulação de Monte Carlo será a Weibull Inversa, mas também conhecida como Distribuição Fréchet, proposta por Jiang, Murthy e Ji (2001). O motivo da escolha foi sua massiva utilização em diversas áreas, principalmente na Medicina e Ecologia. A sua função densidade de probabilidade é esta a seguir:
+
+</div>
+
+<br/><br/>
+
+$$
+ f(x) = \alpha\theta x^{-\theta-1}e^{-\alpha x^{-\theta}}, x > 0
+$$
+
+
+
+
+
+<br/><br/>
+
+<div style="text-align: justify"> Sua implementação na linguagem R fica assim:
+
+</div>
+
+
+<br/>
+
+````{r echo = T, eval = T, prompt = T, comments = '', message = F, warnings = ''}
+
+dwi <- function(x, alpha, theta){
+  alpha*theta*x^(-theta-1)*exp(-alpha*x^(-theta))
+}
+
+
+````
+
+<br/><br/>
+
+
+<div style="text-align: justify"> Sua função acumulada e sua implementação no R estão a seguir, respectivamente:
+
+</div>
+
+<br/><br/>
+
+$$
+ F(x) = e^{-\alpha x^{-\theta}}, x > 0
+$$
+<br/><br/>
+
+````{r echo = T, eval = T, prompt = T, comments = '', message = F, warnings = ''}
+
+pwi <- function(q, alpha, theta){
+  exp(-alpha*q^(-theta))
+}
+
+
+````
+<br/><br/>
+
+
+<div style="text-align: justify"> Para a Simulação de Monte Carlo é necessário também obter a função quantil, pois, na simulação precisaremos gerar números aleatórios seguindo o nosso modelo probabilístico escolhido. Para encontrar a função inversa, precisaríamos considerar f(x) = q e isolar o x. Para alguns casos essa etapa seria um problema porque poderia acontecer de não existir uma solução analítica, todavia, para a Weibull Inversa não foi. Pensando em otimizar o processo, foi utilizado o software matemático Maplesoft.
+
+</div>
+
+<br/>
+
+<div style="text-align: justify">  O resultado obtido está a seguir, tanto a função quanto ela
+implementada no R:
+
+</div>
+
+````{r echo = T, eval = T, prompt = T, comments = '', message = F, warnings = ''}
+
+qwi <- function(p,alpha,theta)
+{
+  exp(-log(-log(p)/alpha)/theta)
+}
+
+````
+
+<br/><br/>
+
+$$
+ g(q)= e^{-log(-log(q)/alpha)/\theta}, x>0
+$$
+
+<br/><br/>
+
+
+<div style="text-align: justify"> Para a simulação, precisaremos também de uma 
+função que irá gerar números aleatórios segundo a distribuição escolhida. 
+A chamaremos de 'rwi'.
+
+</div
+
+<br/>
+
+````{r echo = T, eval = T, prompt = T, comments = '', message = F, warnings = ''}
+
+rwi <- function(n, alpha, theta)
+{
+  u <- runif(n)
+  rv <- qwi(u, alpha, theta)
+  return(rv)
+}
+````
+
+<br/><br/>
+
+
+<div style="text-align: justify"> Existem ainda duas funções que são necessários implementar 
+antes de iniciarmos de fato a simulação: a Função Log Verossimilhança e o Estimador de Máxima 
+Verossimilhança. Em relação ao primeiro item, basta fazermos o somatório do log da Função Densidade
+de Probabilidade. Segue sua implementação:
+
+</div>
+
+<br/>
+
+$$
+ l(\alpha,\theta;x) = \sum\limits_{i=1}^{\mbox{n}}log(\alpha\theta xi^{-\theta-1}e^{-\alpha xi^{-\theta}})
+$$
+
+<br/>
+
+````{r echo = T, eval = T, prompt = T, comments = '', message = F, warnings = ''}
+
+ll      <- function(x, par)
+{
+  sum(log(dwi(x,alpha = par[1],theta = par[2])))
+  
+}
+````
+
+<br/><br/>
+
+<div style="text-align: justify"> A segunda função que está faltando é a do Estimador de Máxima Verossimilhança. Se fôssemos calcular na mão, precisaríamos utilizar a matriz Hessiana para encontrar, contudo, computacionalmente temos algumas opções, dentre elas o pacote ‘Fitdistrplus’ e o ‘Optim’. O ‘Fitdistrplus’ tem sua vantagem, pois, para determinados problemas costuma ser mais rápido, todavia, acabei optando por usar o ‘Optim’ por já fazer parte da base da Linguagem R. Sua implementação está a seguir:
+
+</div>
+
+<br/>
+
+````{r echo = T, eval = T, prompt = T, comments = '', message = F, warnings = ''}
+
+emv.weibull <- function(x, par){
+  
+  fit <- optim(par = c(par[1], par[2]), fn = ll, x = x, 
+               control = list(fnscale = -1))$par
+  if(!is.numeric(fit)) fit <- NA
+  return(fit)
+}
+````
+
+<br/><br/>
+
+<div style="text-align: justify"> Agora irei criar uma semente para ser possível replicar os resultados que 
+virão a seguir e também determinarei os parâmetros que irei simular. A escolha dos parâmetros foram baseados no artigo
+'Modifications of the Weibull distribution: A review', material que consultei para definir as Funções Densidade
+e Acumulada da Weibull Inversa. É necessário também criar uma variável que contenha todos os cenários possíveis
+permutados entre os parâmetros escolhidos. Para a tarefa, usarei o 'expand.grid'. A seguir estarão todos os
+cenários possíveis.
+
+</div>
+
+<br/>
+
+````{r echo = T, eval = T, prompt = T, comments = '', message = F, warnings = ''}
+
+# Estrutura da Simulação
+
+set.seed(16011995) # Definir a semente para resultados reprodutíveis
+
+alpha <- seq(1, 3, 1) # Definir os valores paramétricos
+theta <- seq(1, 3, 1) 
+
+param  <- expand.grid(alpha, theta) # Cenários
+
+````
+
+<br/>
+
+#### Possíveis Cenários
+
+<br/>
+
+
+
+````{r fig.width = 13, fig.height = 6, echo = F, eval = T, prompt = T, comments = '', message = F, warning = FALSE}
+
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+
+kable(param, col.names = c("Alpha","Theta"), align = 'c', caption = "", row.names = T) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+
+````
+
+<br/>
+
+<div style="text-align: justify"> Agora iremos determinar a quantidade de simulações,
+os tamanhos de amostras possíveis e quatro matrizes que armazenarão os Viéses
+e os Erros Quadráticos Médios de cada parâmetro.
+
+</div>
+
+<br/>
+
+````{r echo = T, eval = T, prompt = T, comments = '', message = F, warnings = ''}
+
+B      <- 10 # Número de simulações
+
+nmax   <- 100 # Tamanho de amostra máximo
+enes   <- seq(10, nmax, 10) # Tamanhos de amostras
+
+v.alpha <- matrix(nrow = length(enes), ncol = nrow(param)) 
+# Viés do estimador do parâmetro alpha
+
+v.theta <- v.alpha # Viés do estimador do parâmetro theta
+
+e.alpha <- matrix(nrow = length(enes), ncol = nrow(param)) 
+# Erro-quadrático-médio do estimador do parâmetro alpha
+
+e.theta <- e.alpha # Erro-quadrático-médio do estimador theta
+
+````
+
+
+<br/><br/>
+
+<div style="text-align: justify"> Agora iniciaremos a simulação. O código implementado
+a seguir irá calcular o Estimador de Máxima Verossimilhança para cada x[i] de todos os tamanhos de amostras
+possíveis em cada cenário contido na variável 'param'. Exemplo: o cenário 1, que possui 
+$\alpha = 1$ e $\theta = 1$, a simulação irá calcular o EMV de todos os x[i]'s das amostras de tamanho 10,
+20, 30, 40, 50, 60, 70, 80, 90 e 100. Depois, armazenarão em 'v.alpha', 'v.theta', 'e.alpha' e 
+'e.theta' os viéses e EQM's dos parâmetros. 
+
+</div>
+
+<br/>
+
+<div style="text-align: justify"> Dessa forma, conseguiremos definir qual é o conjunto de
+parâmetros que possui o menor Viés e o menor Erro Quadrático Médio.
+
+</div>
+
+````{r echo = T, eval = F, prompt = T, comments = '', message = F, warnings = ''}
+
+# Simulação
+
+for(i in 1:nrow(param)){
+  k <- 1
+  X <- rwi(nmax * B, alpha = param[i,1], theta = param[i,2])
+  X <- matrix(X, ncol = B, nrow = nmax)
+  
+  for(n in enes)
+  {
+    x   <- data.frame(X[1:n,])
+    fit <- sapply(x, emv.weibull, par = param[i,])
+    
+    v.alpha[k,i] <- mean(fit[][1,] - param[i,1], na.rm = TRUE)
+    v.theta[k,i] <- mean(fit[][2,] - param[i,2], na.rm = TRUE)
+    
+    e.alpha[k,i] <- mean((fit[][1,] - param[i,1])^2, na.rm = TRUE)
+    e.theta[k,i] <- mean((fit[][2,] - param[i,2])^2, na.rm = TRUE)
+    
+    k <- k + 1
+    
+    cat(i, n, param[i,1], param[i,2], "\n")
+  }
+}
+
+````
+
+<br/><br/>
+
+
+<div style="text-align: justify">  Após iniciar a compilação do código implementado, esse processo
+pode levar de alguns segundos a algumas horas dependendo da quantidade de simulações que for realizar.
+No meu caso, se colocarmos para fazer 100 mil simulações, irá levar aproximadamente 6 horas para finalizar.
+O tempo longo é um ponto negativo, porém a seguir vamos entender o porquê de usar um número alto assim.
+
+</div>
+
+<br/>
+
+
+<div style="text-align: justify">  Mas antes de irmos para os resultados, após a compilação, o ideal é plotar os gráficos e armazená-los para não correr o risco de ter que rodar novamente as linhas de comando. Os comandos para realizar esta tarefa estão a seguir:
+
+</div>
+
+<br/>
+
+
+````{r echo = T, eval = F, prompt = T, comments = '', message = F, warnings = ''}
+
+png(filename = "viesalpha10.png",width = 25, height = 21, 
+    units = "cm",res = 1200)
+matplot(v.alpha, type = 'b', xlab = 'Amostra', ylab = NULL, 
+        main = 'Viés do Estimador do Parâmetro Alpha - 10 Simulações')
+dev.off()
+
+
+png(filename = "viestheta10.png",width = 25, height = 21, 
+    units = "cm",res = 1200)
+matplot(v.theta, type = 'b', xlab = 'Amostra', ylab = NULL, 
+        main = 'Viés do Estimador do Parâmetro Theta - 10 Simulações')
+dev.off()
+
+
+png(filename = "eqmalpha10.png",width = 25, height = 21, 
+    units = "cm",res = 1200)
+matplot(e.alpha, type = 'b', xlab = 'Amostra', ylab = NULL, 
+        main = 'EQM do Estimador do Parâmetro Alpha - 10 Simulações')
+dev.off()
+
+
+png(filename = "eqmtheta10.png",width = 25, height = 21, 
+    units = "cm",res = 1200)
+matplot(e.theta, type = 'b', xlab = 'Amostra', ylab = NULL, 
+        main = 'EQM do Estimador do Parâmetro Theta - 10 Simulações')   
+dev.off()
+````
+
+
+<br/><br/>
+
+
+
+## RESULTADOS
+
+
+<br/><br/>
+
+<div style="text-align: justify"> A seguir mostraremos os resultados das 10, 100, 1000, 10 mil e 100 mil simulações. Lembrando que no eixo das abscissas serão representadas
+as amostras numeradas de 1 até 10, porém significa que a amostra 1 tem 10 observações, a 2 tem 20 e assim por
+diante até chegar na amostra de tamanho 100, como foi definido no script.
+
+</div>
+
+<br/>
+
+### 10 simulações
+
+<br/>
+
+<center> ![](viesalpha10.png) </center>
+<br/>
+<center> ![](viestheta10.png) </center>
+<br/>
+<center> ![](eqmalpha10.png) </center>
+<br/>
+<center> ![](eqmtheta10.png) </center>
+<br/>
+
+<br/>
+
+### 100 simulações
+
+<br/>
+
+<center> ![](viesalpha100.png) </center>
+<br/>
+<center> ![](viestheta100.png) </center>
+<br/>
+<center> ![](eqmalpha100.png) </center>
+<br/>
+<center> ![](eqmtheta100.png) </center>
+<br/>
+
+<br/>
+
+### 1000 simulações
+
+<br/>
+
+<center> ![](viesalpha1000.png) </center>
+<br/>
+<center> ![](viestheta1000.png) </center>
+<br/>
+<center> ![](eqmalpha1000.png) </center>
+<br/>
+<center> ![](eqmtheta1000.png) </center>
+<br/>
+
+<br/>
+
+### 10 mil simulações
+
+<br/>
+
+<center> ![](viesalpha10mil.png) </center>
+<br/>
+<center> ![](viestheta10mil.png) </center>
+<br/>
+<center> ![](eqmalpha10mil.png) </center>
+<br/>
+<center> ![](eqmtheta10mil.png) </center>
+<br/>
+
+<br/>
+
+### 100 mil simulações
+
+<br/>
+
+<center> ![](viesalpha100mil.png) </center>
+<br/>
+<center> ![](viestheta100mil.png) </center>
+<br/>
+<center> ![](eqmalpha100mil.png) </center>
+<br/>
+<center> ![](eqmtheta100mil.png) </center>
+<br/>
+
+<div style="text-align: justify"> Analisando todos os resultados obtidos podemos
+perceber que conforme vamos aumentando a quantidade de simulações, os cenários dos Vieses
+e dos Erros Quadráticos Médios vão alternando entre melhores e piores. 
+
+</div>
+
+<br/>
+
+<div style="text-align: justify"> Por exemplo, no Viés do parâmetro 
+$\alpha$ para 10 simulações, é possível notar que o cenário 1 ($\alpha =  1$, $\theta = 1$)
+e amostra 1 (10 observações) está superestimando o valor da estimação em exatamente 0,490756694. Pensando nessas
+condições, é um cenário ruim quando comparado com o 2 ($\alpha =  2$ e $\theta = 1$), pois o mesmo superestima em 0,3738559253. Porém, quando olhamos em 100 mil simulações a situação muda. No cenário 1 é superestimado em
+0.107131606 e no cenário 2, 0.57085183. Ou seja, ($\alpha =  1$ e $\theta = 1$) acabou sendo menos viesado do que
+($\alpha =  2$, $\theta = 1$) nesta situação.
+</div>
+
+<br/>
+
+<div style="text-align: justify"> Quando analisamos os restantes dos cenários, podemos concluir que o cenário 1 ($\alpha =  1$ e $\theta = 1$) dentre todos os outros foi o que mais se destacou quando olhamos em 100 mil simulações. Analisando 
+os Vieses de $\alpha$  e $\theta$, é possível observar que, coletivamente, são os que
+mais se aproximam de zero conforme vamos aumentando o tamanho da amostra. Chegamos
+na mesma conclusão quando analisamos os EQM's. 
+</div>
+<br/><br/>
+
+## AJUSTANDO O MODELO EM UM BANCO DE DADOS
+
+<br/><br/>
+
+<div style="text-align: justify"> Tive acesso a um banco de dados do estudo "Leukocyte profiles are associated with longevity and survival, but not migratory effort: A comparative analysis of shorebirds (2017)".
+Esse estudo foi realizado em 19 espécies de aves limícolas da Europa Central (aves que se alimentam de pequenos invertebrados que estão alojados em "limus" (lodo em latim)). Seu objetivo é entender, dentre outros pontos, se existe relação entre a razão dos tipos de células heterófilos (relacionada a adaptação fisiológica de um organismo para lidar com uma infecção por lesão) e linfócitos (relacionada a adaptação fisiológica de um organismo para lidar com uma infecção transmissível) de nível interespecífico (predação, por exemplo).
+</div>
+
+<br/>
+
+<div style="text-align: justify"> Abaixo estão dois exemplos, o primeiro é uma das espécies de aves
+que foram estudadas. Já o segundo, um heterífilo.
+</div>
+
+<br/>
+
+<br/>
+<center> ![Maçarico das Rochas (Actitis hypoleucos)](ave.png) </center>
+<br/>
+<center> ![Visualização de heterófilos](celula.png) </center>
+<br/>
+
+<br/>
+
+<div style="text-align: justify"> O meu objetivo é ver se com o modelo escolhido, conseguiremos 
+ajustá-lo nos dados da variável "H/L ratio". Nesse momento, deixaremos de usar números 
+aleatórios no calculo de Estimador de Máxima Verossimilhança e usaremos valores reais do 
+estudo. Mas primeiro, precisaremos exportar esses dados para o R.
+</div>
+
+````{r echo = T, eval = T, prompt = T, comments = '', message = F, warnings = ''}
+
+# Exportando os dados 
+
+dados <- read.table('Leukocyte_Profiles.csv', sep = ';')
+
+HLratio <- as.numeric(dados[2:416,9])
+
+````
+
+
+<br/>
+
+<div style="text-align: justify"> Agora vou gerar um gráfico da variável "H/L ratio" 
+(Razão entre heterófilos e linfócitos) e ver como os dados se comportam.
+</div>
+
+````{r echo = T, eval = t, prompt = T, comments = '', message = F, warnings = ''}
+
+# Exportando os dados 
+
+hist(HLratio, prob = TRUE, col = "#3fbf44", main = 'Histograma da Razão H/L', 
+     xlab = 'Razão H/L', ylab = "Frequência relativa") 
+
+````
+<br/>
+
+<div style="text-align: justify"> Quando usamos a Simulação de Monte Carlo, chegamos 
+na conclusão de que os parâmetros que na estimação tivemos menos Viés e EQM foram 
+$\alpha = 1$ e $\theta = 1$, então agora usaremos eles como chute inicial para calcular o Estimador 
+de Máxima Verossimilhança da variável "H/L ratio".
+</div>
+
+````{r echo = T, eval = t, prompt = T, comments = '', message = F, warnings = ''}
+
+
+fit <- optim(par = c(1, 1), fn = ll, x = HLratio, control = list(fnscale = -1))$par
+fit
+
+````
+
+<br/>
+
+<div style="text-align: justify"> Os valores de $\alpha$ e $\theta$ estimados foram respectivamente,
+0.4400414 0.8236519. Para finalizar, usaremos a função "curve" para adicionar a curva usando os
+parâmetros estimados.
+
+</div>
+
+````{r echo = T, eval = t, prompt = T, comments = '', message = F, warnings = ''}
+
+hist(HLratio, prob = TRUE, col = "#3fbf44", main = 'Histograma da Razão H/L', 
+     xlab = 'Razão H/L', ylab = "Frequência relativa") 
+curve(dwi(x, alpha = 0.4400414, theta = 0.8236519), add = TRUE)
+
+````
+
+
+<br/>
+
+<div style="text-align: justify"> É possível observar que o modelo não se ajusta totalmente, porém ainda é possível a sua utilização. O ideal seria a curva passar nos pontos médios das barras do histograma.
+
+</div>
+
+
+<div style="text-align: justify"> Uma pergunta interessante seria: e se eu usar outras distribuições 
+com os mesmos parâmetros? Assim fiz e gerou o seguinte gráfico:
+
+</div>
+
+
+````{r echo = T, eval = t, prompt = T, comments = '', message = F, warnings = ''}
+
+hist(HLratio, prob = TRUE, col = "#3fbf44", main = 'Histograma da Razão H/L', 
+     xlab = 'Razão H/L', ylab = "Frequência relativa") 
+
+curve(dwi(x, alpha = 0.4400414, theta = 0.8236519), add = TRUE, lwd = 2)
+curve(dweibull(x, shape  = 0.4400414, scale= 0.8236519), add = TRUE, col = "blue", lwd = 2)
+curve(dexp(x, rate  = 0.4400414), add = TRUE, col = "red", lwd = 2)
+legend('topright',legend=c("Weibull Inversa", "Weibull", "Exponencial"),
+       text.col=c("black", "blue", "red"),cex=.8)
+
+````
+
+<br/>
+
+<div style="text-align: justify"> Analisando o gráfico é possível observar que a distribuição
+que mais se ajusta à variável de interesse é a Weibull Inversa, porém o ideal seria realizar uma 
+simulação igual realiza anteriormente para cada distribuição citada, assim saberíamos quais seriam
+os melhores parâmetros.
+
+</div>
+
+## REFERÊNCIAS
+
+<br/><br/>
+
+<div style="text-align: justify">1. BOLFARINE, H.; SANDOVAL, M. C. Introdução à inferência estatística. Sociedade 
+Brasileira de Matemática, 2001.
+
+</div>
+<div style="text-align: justify">2. BUSSAB, W. O.; MORETTIN, P. A. Estatística básica. 4ª ed. São Paulo: Atual, 1999.
+
+</div>
+
+<div style="text-align: justify">3. CASELLA, G.; BERGER, R. L. Inferência estatística. São Paulo: Cengage Learning, 2010.
+
+</div>
+
+<div style="text-align: justify">4. ULAM, S. The Monte Carlo Method. Journal of the American Statistical Association, 1949. Disponível em: <http://www.mat.ufrgs.br/~viali/estatistica/mat2274/material/textos/TheMonteCarloMethod.pdf>. Acesso em: 11 de nov. de 2022.
+
+</div>
+
+<div style="text-align: justify">5. IBM Cloud Education . Simulação de Monte Carlo. Disponível em: <https://www.ibm.com/br-pt/cloud/learn/monte-carlo-simulation>, Acesso em: 11 de nov. de 2022.
+
+</div>
+
+
+<div style="text-align: justify">6. ZAGO E. S. Carlos, TABOGA R. Sebastião, BONINI-DOMINGOS R.Claudia. Heterophils in peripheral blood of Phrynops geoffroanus (Testudines: Chelidae) from an urban environment of the northeast region of São Paulo State. Disponível em: <https://www.scielo.br/j/rbhh/a/cxQGh5mtQWp94FBjtQp3bRk/?lang=pt#>, Acesso em: 13 de nov. de 2022.
+
+
+
+
+```{r pressure, echo=FALSE}
+
+```
